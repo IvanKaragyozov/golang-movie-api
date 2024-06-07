@@ -41,13 +41,16 @@ func main() {
 	fmt.Println("Server is running successfully on port 8000")
 	err := http.ListenAndServe(":8000", router)
 	if err != nil {
-		return
+		fmt.Println("Error starting server:", err)
 	}
 }
 
 func getSongs(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(library)
+	err := json.NewEncoder(w).Encode(library)
+	if err != nil {
+		http.Error(w, "Error encoding JSON", http.StatusInternalServerError)
+	}
 }
 
 func getSong(w http.ResponseWriter, r *http.Request) {
@@ -55,21 +58,30 @@ func getSong(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	for _, song := range library {
 		if song.ID == params["id"] {
-			json.NewEncoder(w).Encode(song)
+			err := json.NewEncoder(w).Encode(song)
+			if err != nil {
+				http.Error(w, "Error encoding JSON", http.StatusInternalServerError)
+			}
 			return
 		}
 	}
-	w.WriteHeader(http.StatusNotFound)
-	json.NewEncoder(w).Encode(map[string]string{"error": "Song not found"})
+	http.Error(w, "Song not found", http.StatusNotFound)
 }
 
 func createSong(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	var newSong Song
-	json.NewDecoder(r.Body).Decode(&newSong)
+	err := json.NewDecoder(r.Body).Decode(&newSong)
+	if err != nil {
+		http.Error(w, "Error decoding JSON", http.StatusBadRequest)
+		return
+	}
 	newSong.ID = uuid.New().String()
 	library = append(library, newSong)
-	json.NewEncoder(w).Encode(newSong)
+	err = json.NewEncoder(w).Encode(newSong)
+	if err != nil {
+		http.Error(w, "Error encoding JSON", http.StatusInternalServerError)
+	}
 }
 
 func deleteSong(w http.ResponseWriter, r *http.Request) {
@@ -82,23 +94,28 @@ func deleteSong(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	w.WriteHeader(http.StatusNotFound)
-	json.NewEncoder(w).Encode(map[string]string{"error": "Song not found"})
+	http.Error(w, "Song not found", http.StatusNotFound)
 }
 
 func updateSong(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	params := mux.Vars(r)
 	var updatedSong Song
-	json.NewDecoder(r.Body).Decode(&updatedSong)
+	err := json.NewDecoder(r.Body).Decode(&updatedSong)
+	if err != nil {
+		http.Error(w, "Error decoding JSON", http.StatusBadRequest)
+		return
+	}
 	for i, song := range library {
 		if song.ID == params["id"] {
 			updatedSong.ID = song.ID
 			library[i] = updatedSong
-			json.NewEncoder(w).Encode(updatedSong)
+			err = json.NewEncoder(w).Encode(updatedSong)
+			if err != nil {
+				http.Error(w, "Error encoding JSON", http.StatusInternalServerError)
+			}
 			return
 		}
 	}
-	w.WriteHeader(http.StatusNotFound)
-	json.NewEncoder(w).Encode(map[string]string{"error": "Song not found"})
+	http.Error(w, "Song not found", http.StatusNotFound)
 }
